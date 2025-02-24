@@ -33,43 +33,47 @@ public class GameService {
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private final StringBuilder conversationContext = new StringBuilder();
+    private StringBuilder conversationContext = new StringBuilder();
     private boolean isFirstPrompt = true;
     private Feature feature = Feature.NARRATION;
 
     public String getAIResponse(String userInput) {
         try {
+            StringBuilder promptBuilder = new StringBuilder();
+
             if (isFirstPrompt) {
-                conversationContext.append("You are a Dungeon master, in this scenario I am the player and you're dictating the game. The story starts as follows: ").append(userInput);
+                promptBuilder.append("You are a Dungeon Master. I am the player, and you dictate the game. The story begins as follows: ")
+                        .append(userInput).append("\n");
                 isFirstPrompt = false;
-            }
-            else{
-                conversationContext.append(userInput);
+            } else {
+                promptBuilder.append("Player: ").append(userInput).append("\n");
             }
 
+            // Append the feature-specific instruction
             switch (feature) {
                 case NARRATION:
-                    conversationContext.append("\nDescribe the world and its surroundings and give the player a choice");
+                    promptBuilder.append("Describe the world and its surroundings. Then, provide 4 options for the player. Do NOT answer for the player.\n");
                     break;
                 case NPC:
-                    conversationContext.append("\nYou are now a unique NPC with a distinct personality. You ask the player something. and wait for a response");
+                    promptBuilder.append("You are an NPC with a unique personality. Ask the player something, then provide 4 response options. Do NOT answer for the player.\n");
                     break;
                 case BATTLE:
-                    conversationContext.append("\nYou prepare to attack the player as an NPC, what move do you do? and let the player respond");
+                    promptBuilder.append("A battle begins! Describe the enemy's action. Then, list 4 possible choices for the player. Do NOT continue after listing options.\n");
                     break;
                 case RANDOM_EVENT:
-                    conversationContext.append("\nGive a random event");
+                    promptBuilder.append("Introduce an unexpected event in the dungeon. Then, give the player 4 choices. Do NOT continue after listing choices.\n");
                     break;
             }
 
-            String letAnswerPrompt = "STOP when the next decision must be made. Do not answer for the user.";
-            conversationContext.append(letAnswerPrompt);
-            String prompt = conversationContext.toString();
+            // Append stop condition
+            promptBuilder.append("Ensure that you only provide a description followed by choices. Do NOT answer for the player.");
+
+            String prompt = promptBuilder.toString();
 
             Map<String, String> requestBody = Map.of("inputs", prompt);
             String jsonBody = objectMapper.writeValueAsString(requestBody);
 
-            // Create the request to Hugging Face API
+            // Create request
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(HF_URL))
                     .header("Authorization", "Bearer " + HF_API_KEY)
@@ -79,34 +83,33 @@ public class GameService {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            // Parse the response
+            // Parse response
             Object rawResponse = objectMapper.readValue(response.body(), Object.class);
-
             String generatedText = "No response from AI.";
 
             if (rawResponse instanceof List<?>) {
                 List<Map<String, Object>> listResponse = (List<Map<String, Object>>) rawResponse;
                 if (!listResponse.isEmpty()) {
                     generatedText = listResponse.get(0).get("generated_text").toString();
-                    generatedText = generatedText.replace(conversationContext.toString(), "");
+                    generatedText = generatedText.replace(promptBuilder.toString(), "");
                 }
             } else if (rawResponse instanceof Map) {
                 Map<String, Object> mapResponse = (Map<String, Object>) rawResponse;
                 if (mapResponse.containsKey("generated_text")) {
                     generatedText = mapResponse.get("generated_text").toString();
+                    generatedText = generatedText.replace(promptBuilder.toString(), "");
                 }
             }
 
-            conversationContext.append("this is the context")
-                    .append(generatedText)
-                    .append("\n");
+            // Store only the relevant game progress (avoiding AI responses causing repetition)
+            conversationContext.append("AI: ").append(generatedText).append("\n");
 
-            conversationContext.replace(0,
-                    conversationContext.length(),
-                    conversationContext.toString()
-                            .replace(letAnswerPrompt, ""));
-
+            // Randomly select the next feature
             feature = Feature.getRandomFeature();
+
+            System.out.println("Next feature: " + feature);
+            System.out.println("Updated conversation context: \n" + conversationContext);
+
             return generatedText;
         } catch (Exception e) {
             return "Error processing AI response: " + e.getMessage();
