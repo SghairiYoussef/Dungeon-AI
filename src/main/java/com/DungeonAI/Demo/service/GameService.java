@@ -10,7 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.Map;
-import java.util.StringJoiner;
+
 
 @Service
 public class GameService {
@@ -53,12 +53,15 @@ public class GameService {
             // Parse the response
             Object rawResponse = objectMapper.readValue(response.body(), Object.class);
 
+            System.out.println(rawResponse);
             String generatedText = "No response from AI.";
 
             if (rawResponse instanceof List<?>) {
                 List<Map<String, Object>> listResponse = (List<Map<String, Object>>) rawResponse;
                 if (!listResponse.isEmpty()) {
                     generatedText = listResponse.get(0).get("generated_text").toString();
+                    generatedText = generatedText.replace(conversationContext.toString(), "");
+                    System.out.println(generatedText);
                 }
             } else if (rawResponse instanceof Map) {
                 Map<String, Object> mapResponse = (Map<String, Object>) rawResponse;
