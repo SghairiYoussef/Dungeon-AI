@@ -11,6 +11,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
 
+enum Feature {
+    NARRATION,
+    NPC,
+    BATTLE,
+    RANDOM_EVENT;
+
+    public static Feature getRandomFeature() {
+        return values()[(int) (Math.random() * values().length)];
+    }
+}
 
 @Service
 public class GameService {
@@ -23,18 +33,37 @@ public class GameService {
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private StringBuilder conversationContext = new StringBuilder();
+    private final StringBuilder conversationContext = new StringBuilder();
     private boolean isFirstPrompt = true;
+    private Feature feature = Feature.NARRATION;
 
     public String getAIResponse(String userInput) {
         try {
             if (isFirstPrompt) {
-                conversationContext.append("We're writing a story together. I start with: ").append(userInput).append(" what happens next?\n");
+                conversationContext.append("You are a Dungeon master, in this scenario I am the player and you're dictating the game. The story starts as follows: ").append(userInput);
                 isFirstPrompt = false;
             }
             else{
                 conversationContext.append(userInput);
             }
+
+            switch (feature) {
+                case NARRATION:
+                    conversationContext.append("\nDescribe the world and its surroundings and give the player a choice");
+                    break;
+                case NPC:
+                    conversationContext.append("\nYou are now a unique NPC with a distinct personality. You ask the player something. and wait for a response");
+                    break;
+                case BATTLE:
+                    conversationContext.append("\nYou prepare to attack the player as an NPC, what move do you do? and let the player respond");
+                    break;
+                case RANDOM_EVENT:
+                    conversationContext.append("\nGive a random event");
+                    break;
+            }
+
+            String letAnswerPrompt = "STOP when the next decision must be made. Do not answer for the user.";
+            conversationContext.append(letAnswerPrompt);
             String prompt = conversationContext.toString();
 
             Map<String, String> requestBody = Map.of("inputs", prompt);
@@ -53,7 +82,6 @@ public class GameService {
             // Parse the response
             Object rawResponse = objectMapper.readValue(response.body(), Object.class);
 
-            System.out.println(rawResponse);
             String generatedText = "No response from AI.";
 
             if (rawResponse instanceof List<?>) {
@@ -61,7 +89,6 @@ public class GameService {
                 if (!listResponse.isEmpty()) {
                     generatedText = listResponse.get(0).get("generated_text").toString();
                     generatedText = generatedText.replace(conversationContext.toString(), "");
-                    System.out.println(generatedText);
                 }
             } else if (rawResponse instanceof Map) {
                 Map<String, Object> mapResponse = (Map<String, Object>) rawResponse;
@@ -69,8 +96,17 @@ public class GameService {
                     generatedText = mapResponse.get("generated_text").toString();
                 }
             }
-            conversationContext.append(generatedText).append("\n");
 
+            conversationContext.append("this is the context")
+                    .append(generatedText)
+                    .append("\n");
+
+            conversationContext.replace(0,
+                    conversationContext.length(),
+                    conversationContext.toString()
+                            .replace(letAnswerPrompt, ""));
+
+            feature = Feature.getRandomFeature();
             return generatedText;
         } catch (Exception e) {
             return "Error processing AI response: " + e.getMessage();
