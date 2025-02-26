@@ -53,21 +53,17 @@
         const userMessage = messageInput.value;
         if (userMessage.trim() === "") return;
 
-        // Display user message in chat box
         const chatBox = document.getElementById("chat");
         chatBox.innerHTML += `<p><strong>You:</strong> ${userMessage}</p>`;
         chatBox.scrollTop = chatBox.scrollHeight;
 
-        // Clear the input field
         messageInput.value = "";
 
-        // Show AI response generation indicator
         const loadingMessage = document.createElement("p");
         loadingMessage.textContent = "AI is generating a response...";
         chatBox.appendChild(loadingMessage);
         chatBox.scrollTop = chatBox.scrollHeight;
 
-        // Send the message to the backend
         try {
             const response = await fetch("/api/continue", {
                 method: "POST",
@@ -78,7 +74,6 @@
             });
             const data = await response.text();
 
-            // Remove loading message and display AI response
             chatBox.removeChild(loadingMessage);
             chatBox.innerHTML += `<p><strong>AI:</strong> ${data}</p>`;
             chatBox.scrollTop = chatBox.scrollHeight;
