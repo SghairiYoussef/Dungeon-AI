@@ -28,7 +28,7 @@ public class GameService {
             String generatedText = extractGeneratedText(responseJson, prompt);
 
             conversationContext.appendAIResponse(generatedText);
-            feature = Feature.getRandomFeature();  // Select the next feature randomly
+            feature = Feature.getRandomFeature();
 
             return generatedText;
         } catch (Exception e) {

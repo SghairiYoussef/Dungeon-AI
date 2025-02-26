@@ -48,6 +48,41 @@
 </div>
 
 <script>
+
+    async function guestAuth() {
+        let guestId = localStorage.getItem("guestId");
+        if (!guestId) {
+            guestId = crypto.randomUUID();
+            localStorage.setItem("guestId", guestId);
+        }
+        return guestId;
+    }
+
+    async function saveGameProgress(gameData) {
+        const guestId = guestAuth();
+
+        const response = await fetch("http://localhost:3000/game/save", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({guestId, gameData})
+        });
+
+        console.log ("response", await response.json());
+    }
+
+    async function loadGameProgress() {
+        const guestId = guestAuth()
+        const response = await fetch(`http://localhost:8080/game/load/${guestId}`);
+        const data = await response.json();
+
+        if (data) {
+            console.log("Loaded game:", data);
+            return data.gameData;
+        }
+        return null;
+    }
+
+
     document.getElementById("sendMessage").addEventListener("click", async function () {
         const messageInput = document.getElementById("messageInput");
         const userMessage = messageInput.value;
