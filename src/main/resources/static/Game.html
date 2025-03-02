@@ -48,7 +48,6 @@
 </div>
 
 <script>
-
     async function guestAuth() {
         let guestId = localStorage.getItem("guestId");
         if (!guestId) {
@@ -58,30 +57,26 @@
         return guestId;
     }
 
-    async function saveGameProgress(gameData) {
-        const guestId = guestAuth();
+    async function saveGameProgress() {
+        const guestId = await guestAuth();
+        const gameData = { chat: document.getElementById("chat").innerHTML };
 
-        const response = await fetch("http://localhost:3000/game/save", {
+        await fetch("http://localhost:3000/game/save", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({guestId, gameData})
+            body: JSON.stringify({ guestId, gameData })
         });
-
-        console.log ("response", await response.json());
     }
 
     async function loadGameProgress() {
-        const guestId = guestAuth()
+        const guestId = await guestAuth();
         const response = await fetch(`http://localhost:8080/game/load/${guestId}`);
         const data = await response.json();
 
-        if (data) {
-            console.log("Loaded game:", data);
-            return data.gameData;
+        if (data && data.gameData) {
+            document.getElementById("chat").innerHTML = data.gameData.chat;
         }
-        return null;
     }
-
 
     document.getElementById("sendMessage").addEventListener("click", async function () {
         const messageInput = document.getElementById("messageInput");
@@ -102,9 +97,7 @@
         try {
             const response = await fetch("/api/continue", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ userInput: userMessage })
             });
             const data = await response.text();
@@ -116,5 +109,8 @@
             console.error("Error:", error);
         }
     });
+
+    window.addEventListener("load", loadGameProgress);
+    window.addEventListener("beforeunload", saveGameProgress);
 </script>
 </body>
